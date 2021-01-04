@@ -171,6 +171,9 @@ void setup() {
     while (1);
   }
 
+  pinMode(M5_LED, OUTPUT);
+  digitalWrite(M5_LED, HIGH); // Turn off
+
   pinMode(36,INPUT_PULLUP);
 
   setup_wifi();
@@ -184,6 +187,7 @@ void setup() {
 float temperature;
 float humidity;
 float pressure;
+int pir_res = 0;
 const unsigned long detect_interval = 1000; // 1sec
 const unsigned long upload_interval = 300000; // 5min
 unsigned long current_time = 0;
@@ -198,6 +202,9 @@ void loop() {
     connect_mqtt();
   }
   mqttClient.loop();
+
+  pir_res |= digitalRead(36);
+  digitalWrite(M5_LED, digitalRead(36) ? LOW : HIGH);
 
   current_time = millis();
   if ((long)(detect_time - current_time) < 0) {
@@ -232,16 +239,18 @@ void loop() {
       Serial.printf("Temperature: %2.1f C\n", temperature);
       Serial.printf("Humidity: %2.0f %%\n", humidity);
       Serial.printf("Pressure: %4.1f hPa\n", pressure);
+      Serial.printf("PIR Res: %d\n", pir_res);
 
       //jsonデータ作成
 //      StaticJsonDocument<500> doc;
 //      const size_t capacity = JSON_OBJECT_SIZE(4);
 //      DynamicJsonDocument doc(capacity);
-      DynamicJsonDocument doc(192);
+      DynamicJsonDocument doc(128);
       doc["time"] = time;
       doc["temperature"] = temperature;
       doc["humidity"] = humidity;
       doc["pressure"] = pressure;
+      doc["pir_res"] = pir_res;
 
       String message_body;
 
@@ -252,6 +261,7 @@ void loop() {
       send_post_request(host, message_body);
       mqttPublish(pubTopicDB, message_body.c_str());
  
+      pir_res = 0;
       upload_time = current_time + upload_interval;
     }
   }
